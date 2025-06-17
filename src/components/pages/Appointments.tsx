@@ -5,7 +5,7 @@ import { useDataManager } from '../../hooks/useDataManager';
 
 export const Appointments: React.FC = () => {
   const { appointments, setAppointments, patients } = useDataManager();
-  const [selectedDate, setSelectedDate] = useState('2024-12-31');
+  const [selectedDate, setSelectedDate] = useState('2025-06-19');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
