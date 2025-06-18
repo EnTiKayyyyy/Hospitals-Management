@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, User, Stethoscope, Plus, X, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { useDataManager } from '../../hooks/useDataManager';
+import { Appointment } from '../../types';
 
 interface PatientAppointmentBookingProps {
   user: any;
@@ -13,7 +14,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
   onClose, 
   onSuccess 
 }) => {
-  const { setAppointments } = useDataManager();
+  const { appointments, setAppointments } = useDataManager();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     department: '',
@@ -155,32 +156,62 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
     
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Get selected doctor info
+      // Get selected doctor and department info
       const selectedDoctor = doctors[formData.department as keyof typeof doctors]?.find(d => d.id === formData.doctorId);
       const selectedDepartment = departments.find(d => d.id === formData.department);
       
-      // Create new appointment and save to localStorage
-      const newAppointment = {
+      if (!selectedDoctor || !selectedDepartment) {
+        throw new Error('Không tìm thấy thông tin bác sĩ hoặc khoa');
+      }
+
+      // Check for time conflicts
+      const conflictingAppointment = appointments.find(apt => 
+        apt.doctorId === formData.doctorId &&
+        apt.date === formData.appointmentDate &&
+        apt.time === formData.appointmentTime &&
+        apt.status !== 'cancelled'
+      );
+
+      if (conflictingAppointment) {
+        setErrors({ general: 'Bác sĩ đã có lịch hẹn vào thời gian này. Vui lòng chọn thời gian khác.' });
+        return;
+      }
+      
+      // Create new appointment object with proper structure
+      const newAppointment: Appointment = {
         id: String(Date.now()),
         patientId: user.id,
         patientName: user.name,
         doctorId: formData.doctorId,
-        doctorName: selectedDoctor?.name || '',
-        department: selectedDepartment?.name || '',
+        doctorName: selectedDoctor.name,
+        department: selectedDepartment.name,
         date: formData.appointmentDate,
         time: formData.appointmentTime,
         type: formData.type,
-        status: 'scheduled' as const,
-        notes: formData.notes
+        status: 'scheduled',
+        notes: [
+          `Lý do khám: ${formData.reason}`,
+          formData.symptoms ? `Triệu chứng: ${formData.symptoms}` : '',
+          formData.notes ? `Ghi chú: ${formData.notes}` : ''
+        ].filter(Boolean).join(' | ')
       };
       
-      setAppointments(prevAppointments => [...prevAppointments, newAppointment]);
+      console.log('Creating new appointment:', newAppointment);
       
+      // Add to appointments using useDataManager
+      setAppointments(prevAppointments => {
+        const updatedAppointments = [...prevAppointments, newAppointment];
+        console.log('Updated appointments:', updatedAppointments);
+        return updatedAppointments;
+      });
+      
+      // Call success callback
       onSuccess();
     } catch (error) {
-      setErrors({ general: 'Có lỗi xảy ra, vui lòng thử lại' });
+      console.error('Error creating appointment:', error);
+      setErrors({ general: 'Có lỗi xảy ra khi đặt lịch hẹn. Vui lòng thử lại.' });
     } finally {
       setIsLoading(false);
     }
@@ -332,7 +363,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
                     return (
                       <div
                         key={date}
-                        onClick={() => setFormData({ ...formData, appointmentDate: date })}
+                        onClick={() => setFormData({ ...formData, appointmentDate: date, appointmentTime: '' })}
                         className={`p-3 border-2 rounded-lg cursor-pointer text-center transition-all ${
                           formData.appointmentDate === date
                             ? 'border-emerald-500 bg-emerald-50'
@@ -353,20 +384,34 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Chọn giờ khám</h3>
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {timeSlots.map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => setFormData({ ...formData, appointmentTime: time })}
-                        className={`p-3 border-2 rounded-lg transition-all ${
-                          formData.appointmentTime === time
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-200 hover:border-emerald-300 text-gray-700'
-                        }`}
-                      >
-                        <Clock className="h-4 w-4 mx-auto mb-1" />
-                        <div className="text-sm font-medium">{time}</div>
-                      </button>
-                    ))}
+                    {timeSlots.map((time) => {
+                      // Check if this time slot is already booked
+                      const isBooked = appointments.some(apt => 
+                        apt.doctorId === formData.doctorId &&
+                        apt.date === formData.appointmentDate &&
+                        apt.time === time &&
+                        apt.status !== 'cancelled'
+                      );
+
+                      return (
+                        <button
+                          key={time}
+                          onClick={() => !isBooked && setFormData({ ...formData, appointmentTime: time })}
+                          disabled={isBooked}
+                          className={`p-3 border-2 rounded-lg transition-all ${
+                            isBooked
+                              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : formData.appointmentTime === time
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                : 'border-gray-200 hover:border-emerald-300 text-gray-700'
+                          }`}
+                        >
+                          <Clock className="h-4 w-4 mx-auto mb-1" />
+                          <div className="text-sm font-medium">{time}</div>
+                          {isBooked && <div className="text-xs text-red-500">Đã đặt</div>}
+                        </button>
+                      );
+                    })}
                   </div>
                   {errors.appointmentTime && <p className="text-red-500 text-sm mt-2">{errors.appointmentTime}</p>}
                 </div>
