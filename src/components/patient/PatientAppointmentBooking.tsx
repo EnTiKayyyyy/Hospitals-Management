@@ -1,3 +1,5 @@
+// File: src/components/patient/PatientAppointmentBooking.tsx
+
 import React, { useState } from 'react';
 import { Calendar, Clock, User, Stethoscope, Plus, X, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { useDataManager } from '../../hooks/useDataManager';
@@ -9,10 +11,10 @@ interface PatientAppointmentBookingProps {
   onSuccess: () => void;
 }
 
-export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps> = ({ 
-  user, 
-  onClose, 
-  onSuccess 
+export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps> = ({
+  user,
+  onClose,
+  onSuccess
 }) => {
   const { appointments, setAppointments } = useDataManager();
   const [currentStep, setCurrentStep] = useState(1);
@@ -79,7 +81,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
     const slots = [];
     const morningSlots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'];
     const afternoonSlots = ['13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
-    
+
     return [...morningSlots, ...afternoonSlots];
   };
 
@@ -89,17 +91,17 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
   const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
-    
+
     for (let i = 1; i <= 30; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      
+
       // Skip Sundays (0 = Sunday)
       if (date.getDay() !== 0) {
         dates.push(date.toISOString().split('T')[0]);
       }
     }
-    
+
     return dates;
   };
 
@@ -153,21 +155,19 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
     }
 
     setIsLoading(true);
-    
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Get selected doctor and department info
+
       const selectedDoctor = doctors[formData.department as keyof typeof doctors]?.find(d => d.id === formData.doctorId);
       const selectedDepartment = departments.find(d => d.id === formData.department);
-      
+
       if (!selectedDoctor || !selectedDepartment) {
         throw new Error('Không tìm thấy thông tin bác sĩ hoặc khoa');
       }
 
-      // Check for time conflicts
-      const conflictingAppointment = appointments.find(apt => 
+      const conflictingAppointment = appointments.find(apt =>
         apt.doctorId === formData.doctorId &&
         apt.date === formData.appointmentDate &&
         apt.time === formData.appointmentTime &&
@@ -178,8 +178,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
         setErrors({ general: 'Bác sĩ đã có lịch hẹn vào thời gian này. Vui lòng chọn thời gian khác.' });
         return;
       }
-      
-      // Create new appointment object with proper structure
+
       const newAppointment: Appointment = {
         id: String(Date.now()),
         patientId: user.id,
@@ -197,18 +196,20 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
           formData.notes ? `Ghi chú: ${formData.notes}` : ''
         ].filter(Boolean).join(' | ')
       };
-      
+
       console.log('Creating new appointment:', newAppointment);
-      
-      // Add to appointments using useDataManager
+      console.log('Attempting to call setAppointments to save new appointment...');
+
       setAppointments(prevAppointments => {
-        const updatedAppointments = [...prevAppointments, newAppointment];
-        console.log('Updated appointments:', updatedAppointments);
-        return updatedAppointments;
+          const updatedAppointments = [...prevAppointments, newAppointment];
+          console.log('Updated appointments state (in memory only, localStorage might not be updated reliably):', updatedAppointments);
+          return updatedAppointments;
       });
-      
-      // Call success callback
-      onSuccess();
+
+      console.log('setAppointments call initiated. Now forcing a page refresh.');
+
+      window.location.reload();
+
     } catch (error) {
       console.error('Error creating appointment:', error);
       setErrors({ general: 'Có lỗi xảy ra khi đặt lịch hẹn. Vui lòng thử lại.' });
@@ -251,14 +252,14 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
               <X className="w-6 h-6" />
             </button>
           </div>
-          
+
           {/* Progress Steps */}
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all ${
-                  currentStep >= step.number 
-                    ? 'bg-white text-emerald-600 border-white' 
+                  currentStep >= step.number
+                    ? 'bg-white text-emerald-600 border-white'
                     : 'border-white/50 text-white/70'
                 }`}>
                   {currentStep > step.number ? (
@@ -275,7 +276,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
               </div>
             ))}
           </div>
-          
+
           <div className="mt-3">
             <p className="text-sm font-medium">{steps[currentStep - 1].title}</p>
             <p className="text-xs text-emerald-100">{steps[currentStep - 1].description}</p>
@@ -359,7 +360,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
                     const dayName = dateObj.toLocaleDateString('vi-VN', { weekday: 'short' });
                     const dayNumber = dateObj.getDate();
                     const monthName = dateObj.toLocaleDateString('vi-VN', { month: 'short' });
-                    
+
                     return (
                       <div
                         key={date}
@@ -386,7 +387,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {timeSlots.map((time) => {
                       // Check if this time slot is already booked
-                      const isBooked = appointments.some(apt => 
+                      const isBooked = appointments.some(apt =>
                         apt.doctorId === formData.doctorId &&
                         apt.date === formData.appointmentDate &&
                         apt.time === time &&
@@ -487,7 +488,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
             <div className="space-y-6">
               <div className="bg-gray-50 rounded-lg p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Xác nhận thông tin đặt lịch</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">Thông tin bệnh nhân</h4>
@@ -589,7 +590,7 @@ export const PatientAppointmentBooking: React.FC<PatientAppointmentBookingProps>
                 </button>
               )}
             </div>
-            
+
             <div>
               {currentStep < 4 ? (
                 <button

@@ -1,6 +1,8 @@
+// File: src/hooks/useDataManager.ts
+
 import { useState, useEffect } from 'react';
 import { Patient, Appointment, Medicine, Invoice, LabTest, MedicalRecord, Supplier, StockTransaction, StockAlert, PaymentTransaction, ServicePrice, InsuranceProvider, LabTestTemplate } from '../types';
-import { 
+import {
   mockPatients as initialPatients,
   mockAppointments as initialAppointments,
   mockMedicines as initialMedicines,
@@ -37,6 +39,7 @@ const STORAGE_KEYS = {
 const getFromStorage = <T>(key: string, defaultValue: T): T => {
   try {
     const item = localStorage.getItem(key);
+    console.log(`[FROM STORAGE] Key: ${key}, Value:`, item ? JSON.parse(item) : defaultValue); // Thêm log này
     return item ? JSON.parse(item) : defaultValue;
   } catch (error) {
     console.error(`Error reading from localStorage key "${key}":`, error);
@@ -46,63 +49,69 @@ const getFromStorage = <T>(key: string, defaultValue: T): T => {
 
 const saveToStorage = <T>(key: string, value: T): void => {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const serializedValue = JSON.stringify(value);
+    localStorage.setItem(key, serializedValue);
+    console.log(`[TO STORAGE] Saved key "${key}". Data:`, value); // Thêm log này
+    console.log(`[TO STORAGE] Serialized value length: ${serializedValue.length}`); // Thêm log này
   } catch (error) {
-    console.error(`Error saving to localStorage key "${key}":`, error);
+    console.error(`Error saving to localStorage key "${key}":`, error); // Log lỗi nếu có
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.error('Local Storage Quota Exceeded! Data might not be saved.');
+    }
   }
 };
 
 export const useDataManager = () => {
   // Initialize state with data from localStorage or default mock data
-  const [patients, setPatientsState] = useState<Patient[]>(() => 
+  const [patients, setPatientsState] = useState<Patient[]>(() =>
     getFromStorage(STORAGE_KEYS.PATIENTS, initialPatients)
   );
-  
-  const [appointments, setAppointmentsState] = useState<Appointment[]>(() => 
+
+  const [appointments, setAppointmentsState] = useState<Appointment[]>(() =>
     getFromStorage(STORAGE_KEYS.APPOINTMENTS, initialAppointments)
   );
-  
-  const [medicines, setMedicinesState] = useState<Medicine[]>(() => 
+
+  const [medicines, setMedicinesState] = useState<Medicine[]>(() =>
     getFromStorage(STORAGE_KEYS.MEDICINES, initialMedicines)
   );
-  
-  const [invoices, setInvoicesState] = useState<Invoice[]>(() => 
+
+  const [invoices, setInvoicesState] = useState<Invoice[]>(() =>
     getFromStorage(STORAGE_KEYS.INVOICES, initialInvoices)
   );
-  
-  const [labTests, setLabTestsState] = useState<LabTest[]>(() => 
+
+  const [labTests, setLabTestsState] = useState<LabTest[]>(() =>
     getFromStorage(STORAGE_KEYS.LAB_TESTS, initialLabTests)
   );
-  
-  const [medicalRecords, setMedicalRecordsState] = useState<MedicalRecord[]>(() => 
+
+  const [medicalRecords, setMedicalRecordsState] = useState<MedicalRecord[]>(() =>
     getFromStorage(STORAGE_KEYS.MEDICAL_RECORDS, initialMedicalRecords)
   );
-  
-  const [suppliers, setSuppliersState] = useState<Supplier[]>(() => 
+
+  const [suppliers, setSuppliersState] = useState<Supplier[]>(() =>
     getFromStorage(STORAGE_KEYS.SUPPLIERS, initialSuppliers)
   );
-  
-  const [stockTransactions, setStockTransactionsState] = useState<StockTransaction[]>(() => 
+
+  const [stockTransactions, setStockTransactionsState] = useState<StockTransaction[]>(() =>
     getFromStorage(STORAGE_KEYS.STOCK_TRANSACTIONS, initialStockTransactions)
   );
-  
-  const [stockAlerts, setStockAlertsState] = useState<StockAlert[]>(() => 
+
+  const [stockAlerts, setStockAlertsState] = useState<StockAlert[]>(() =>
     getFromStorage(STORAGE_KEYS.STOCK_ALERTS, initialStockAlerts)
   );
-  
-  const [paymentTransactions, setPaymentTransactionsState] = useState<PaymentTransaction[]>(() => 
+
+  const [paymentTransactions, setPaymentTransactionsState] = useState<PaymentTransaction[]>(() =>
     getFromStorage(STORAGE_KEYS.PAYMENT_TRANSACTIONS, initialPaymentTransactions)
   );
-  
-  const [servicePrices, setServicePricesState] = useState<ServicePrice[]>(() => 
+
+  const [servicePrices, setServicePricesState] = useState<ServicePrice[]>(() =>
     getFromStorage(STORAGE_KEYS.SERVICE_PRICES, initialServicePrices)
   );
-  
-  const [insuranceProviders, setInsuranceProvidersState] = useState<InsuranceProvider[]>(() => 
+
+  const [insuranceProviders, setInsuranceProvidersState] = useState<InsuranceProvider[]>(() =>
     getFromStorage(STORAGE_KEYS.INSURANCE_PROVIDERS, initialInsuranceProviders)
   );
-  
-  const [labTestTemplates, setLabTestTemplatesState] = useState<LabTestTemplate[]>(() => 
+
+  const [labTestTemplates, setLabTestTemplatesState] = useState<LabTestTemplate[]>(() =>
     getFromStorage(STORAGE_KEYS.LAB_TEST_TEMPLATES, initialLabTestTemplates)
   );
 
@@ -251,7 +260,7 @@ export const useDataManager = () => {
     servicePrices,
     insuranceProviders,
     labTestTemplates,
-    
+
     // Setters
     setPatients,
     setAppointments,
@@ -266,7 +275,7 @@ export const useDataManager = () => {
     setServicePrices,
     setInsuranceProviders,
     setLabTestTemplates,
-    
+
     // Utility functions
     resetAllData,
     clearAllData

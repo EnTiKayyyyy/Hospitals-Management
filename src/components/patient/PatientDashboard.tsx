@@ -30,9 +30,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ user, onLogo
 
   // Get upcoming appointments
   const upcomingAppointments = patientAppointments.filter(apt => {
-    const appointmentDate = new Date(apt.date);
-    const today = new Date();
-    return appointmentDate >= today && apt.status !== 'cancelled';
+  const appointmentDate = new Date(apt.date);
+  const today = new Date();
+  const isFutureOrToday = appointmentDate.setHours(0, 0, 0, 0) >= today.setHours(0, 0, 0, 0);
+  return isFutureOrToday && apt.status !== 'cancelled';
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Get recent medical records
@@ -695,7 +696,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ user, onLogo
         <PatientAppointmentBooking
           user={user}
           onClose={() => setShowBookingModal(false)}
-          onSuccess={handleBookingSuccess}
+          onSuccess={() => window.location.reload()}
         />
       )}
     </div>

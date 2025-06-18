@@ -7,7 +7,7 @@ export const Dashboard: React.FC = () => {
   const { patients, appointments, labTests } = useDataManager();
   
   // Calculate dashboard statistics from actual data
-  const todayAppointments = appointments.filter(apt => apt.date === '2024-12-31');
+  const todayAppointments = appointments.filter(apt => apt.date === new Date().toISOString().split('T')[0]);
   const recentPatients = patients.slice(0, 5);
   const pendingTests = labTests.filter(test => test.status === 'in-progress');
 
