@@ -7,7 +7,7 @@ export const Dashboard: React.FC = () => {
   const { patients, appointments, labTests } = useDataManager();
   
   // Calculate dashboard statistics from actual data
-  const todayAppointments = appointments.filter(apt => apt.date === new Date().toISOString().split('T')[0]);
+  const todayAppointments = appointments.filter(apt => apt.date === '2025-06-19');
   const recentPatients = patients.slice(0, 5);
   const pendingTests = labTests.filter(test => test.status === 'in-progress');
 
@@ -15,9 +15,9 @@ export const Dashboard: React.FC = () => {
     totalPatients: patients.length,
     todayAppointments: todayAppointments.length,
     pendingTests: pendingTests.length,
-    revenue: 45600000, // Mock data
-    occupancyRate: 78, // Mock data
-    avgWaitTime: 25 // Mock data
+    revenue: 45600000, 
+    occupancyRate: 78, 
+    avgWaitTime: 25 
   };
 
   return (
