@@ -1,14 +1,17 @@
+// File: src/components/pages/AdminSettings.tsx
+
 import React, { useState } from 'react';
 import { Settings, Users, Shield, Database, Bell, Mail, Globe, Palette, Download, Upload, RotateCcw, Save, X, Plus, Edit, Trash2 } from 'lucide-react';
 import { useDataManager } from '../../hooks/useDataManager';
+import { User } from '../../types'; // Import User type
 
 export const AdminSettings: React.FC = () => {
-  const { 
-    patients, 
-    appointments, 
-    medicines, 
-    invoices, 
-    labTests, 
+  const {
+    patients,
+    appointments,
+    medicines,
+    invoices,
+    labTests,
     medicalRecords,
     resetAllData,
     clearAllData
@@ -17,6 +20,8 @@ export const AdminSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'users' | 'security' | 'data' | 'notifications'>('general');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [showUserFormModal, setShowUserFormModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null); // Dùng type User cho editingUser
 
   // Mock settings state
   const [settings, setSettings] = useState({
@@ -47,11 +52,25 @@ export const AdminSettings: React.FC = () => {
     }
   });
 
-  const [users] = useState([
-    { id: '1', name: 'Admin User', email: 'admin@medicare.vn', role: 'admin', status: 'active', lastLogin: '2024-12-31' },
-    { id: '2', name: 'BS. Nguyễn Văn A', email: 'doctor@medicare.vn', role: 'doctor', status: 'active', lastLogin: '2024-12-30' },
-    { id: '3', name: 'Y tá Trần Thị B', email: 'nurse@medicare.vn', role: 'nurse', status: 'active', lastLogin: '2024-12-30' }
+  // Thay đổi `users` để có thể cập nhật
+  const [users, setUsers] = useState<User[]>([
+    { id: '1', name: 'Admin User', email: 'admin@medicare.vn', role: 'admin', is_active: true, avatar: 'https://images.pexels.com/photos/5452274/pexels-photo-5452274.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2' },
+    { id: '2', name: 'BS. Nguyễn Văn A', email: 'doctor@medicare.vn', role: 'doctor', is_active: true, department: 'Nội khoa', avatar: 'https://images.pexels.com/photos/5452293/pexels-photo-5452293.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2' },
+    { id: '3', name: 'Y tá Trần Thị B', email: 'nurse@medicare.vn', role: 'nurse', is_active: true, department: 'Khoa Nội', avatar: 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2' }
   ]);
+
+  // Form state cho người dùng
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '', // Chỉ dùng khi thêm mới, không hiển thị khi chỉnh sửa
+    role: 'staff' as User['role'],
+    phone: '',
+    department: '',
+    avatar: '',
+    is_active: true,
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({}); // Lỗi của form
 
   const handleSettingChange = (section: string, key: string, value: any) => {
     setSettings(prev => ({
@@ -83,7 +102,7 @@ export const AdminSettings: React.FC = () => {
       medicalRecords,
       exportDate: new Date().toISOString()
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -110,6 +129,96 @@ export const AdminSettings: React.FC = () => {
 
   const stats = getSystemStats();
 
+  // --- Hàm xử lý modal người dùng ---
+  const resetUserForm = () => {
+    setUserForm({
+      name: '',
+      email: '',
+      password: '',
+      role: 'staff',
+      phone: '',
+      department: '',
+      avatar: '',
+      is_active: true,
+    });
+    setFormErrors({});
+    setEditingUser(null);
+  };
+
+  const openAddUserModal = () => {
+    resetUserForm();
+    setShowUserFormModal(true);
+  };
+
+  const openEditUserModal = (userToEdit: User) => {
+    setEditingUser(userToEdit);
+    setUserForm({
+      name: userToEdit.name,
+      email: userToEdit.email,
+      password: '', // Không tải mật khẩu khi chỉnh sửa
+      role: userToEdit.role,
+      phone: (userToEdit as any).phone || '', // phone và department có thể không có trong User type
+      department: userToEdit.department || '',
+      avatar: userToEdit.avatar || '',
+      is_active: userToEdit.is_active || true,
+    });
+    setShowUserFormModal(true);
+  };
+
+  const closeUserFormModal = () => {
+    setShowUserFormModal(false);
+    resetUserForm();
+  };
+
+  const validateUserForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!userForm.name.trim()) newErrors.name = 'Tên là bắt buộc.';
+    if (!userForm.email.trim()) {
+      newErrors.email = 'Email là bắt buộc.';
+    } else if (!/\S+@\S+\.\S+/.test(userForm.email)) {
+      newErrors.email = 'Email không hợp lệ.';
+    }
+    if (!editingUser && !userForm.password.trim()) { // Mật khẩu chỉ bắt buộc khi thêm mới
+      newErrors.password = 'Mật khẩu là bắt buộc.';
+    } else if (!editingUser && userForm.password.trim().length < 6) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự.';
+    }
+    if (!userForm.role) newErrors.role = 'Vai trò là bắt buộc.';
+
+    setFormErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleUserSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateUserForm()) {
+      return;
+    }
+
+    if (editingUser) {
+      // Cập nhật người dùng hiện có
+      setUsers(prevUsers => prevUsers.map(user =>
+        user.id === editingUser.id ? { ...user, ...userForm, id: user.id } : user
+      ));
+    } else {
+      // Thêm người dùng mới
+      const newUser: User = {
+        id: String(Date.now()), // Tạo ID đơn giản
+        name: userForm.name,
+        email: userForm.email,
+        role: userForm.role,
+        is_active: userForm.is_active,
+        phone: userForm.phone || undefined,
+        department: userForm.department || undefined,
+        avatar: userForm.avatar || undefined,
+        // password_hash sẽ được xử lý ở backend, ở đây chỉ là mock
+      };
+      setUsers(prevUsers => [...prevUsers, newUser]);
+    }
+    closeUserFormModal();
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,7 +228,7 @@ export const AdminSettings: React.FC = () => {
           <p className="text-gray-600">Cấu hình và quản lý hệ thống</p>
         </div>
         <div className="flex space-x-3">
-          <button 
+          <button
             onClick={exportData}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
           >
@@ -307,7 +416,10 @@ export const AdminSettings: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">Quản lý người dùng</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center space-x-2 transition-colors">
+                <button
+                  onClick={openAddUserModal} // Gắn hàm xử lý sự kiện openAddUserModal
+                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center space-x-2 transition-colors"
+                >
                   <Plus className="h-4 w-4" />
                   <span>Thêm người dùng</span>
                 </button>
@@ -321,7 +433,6 @@ export const AdminSettings: React.FC = () => {
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Vai trò</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Trạng thái</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-600">Đăng nhập cuối</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-600">Thao tác</th>
                     </tr>
                   </thead>
@@ -334,26 +445,38 @@ export const AdminSettings: React.FC = () => {
                           <span className={`px-2 py-1 text-xs rounded-full ${
                             user.role === 'admin' ? 'bg-red-100 text-red-800' :
                             user.role === 'doctor' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
+                            user.role === 'nurse' ? 'bg-green-100 text-green-800' :
+                            user.role === 'pharmacist' ? 'bg-purple-100 text-purple-800' :
+                            user.role === 'lab_technician' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
                           }`}>
                             {user.role === 'admin' ? 'Quản trị' :
-                             user.role === 'doctor' ? 'Bác sĩ' : 'Y tá'}
+                             user.role === 'doctor' ? 'Bác sĩ' :
+                             user.role === 'nurse' ? 'Y tá' :
+                             user.role === 'pharmacist' ? 'Dược sĩ' :
+                             user.role === 'lab_technician' ? 'KTV Xét nghiệm' :
+                             'Nhân viên'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 text-xs rounded-full ${
-                            user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
-                            {user.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
+                            {user.is_active ? 'Hoạt động' : 'Không hoạt động'}
                           </span>
                         </td>
-                        <td className="py-3 px-4">{new Date(user.lastLogin).toLocaleDateString('vi-VN')}</td>
+                        {/* Assuming lastLogin might not be part of User type or needs to be added */}
+                        <td className="py-3 px-4">{(user as any).lastLogin ? new Date((user as any).lastLogin).toLocaleDateString('vi-VN') : 'N/A'}</td>
                         <td className="py-3 px-4">
                           <div className="flex space-x-2">
-                            <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
+                            <button
+                              onClick={() => openEditUserModal(user)} // Gắn hàm xử lý sự kiện openEditUserModal
+                              className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Chỉnh sửa"
+                            >
                               <Edit className="h-4 w-4" />
                             </button>
-                            <button className="p-1 text-gray-400 hover:text-red-600 transition-colors">
+                            <button className="p-1 text-gray-400 hover:text-red-600 transition-colors" title="Xóa">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -453,12 +576,12 @@ export const AdminSettings: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quản lý dữ liệu</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-medium text-blue-900 mb-2">Sao lưu dữ liệu</h4>
                     <p className="text-sm text-blue-700 mb-4">Xuất toàn bộ dữ liệu hệ thống để sao lưu</p>
-                    <button 
+                    <button
                       onClick={exportData}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
                     >
@@ -479,7 +602,7 @@ export const AdminSettings: React.FC = () => {
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <h4 className="font-medium text-yellow-900 mb-2">Đặt lại dữ liệu</h4>
                     <p className="text-sm text-yellow-700 mb-4">Đặt lại về dữ liệu mẫu ban đầu</p>
-                    <button 
+                    <button
                       onClick={() => setShowResetModal(true)}
                       className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center space-x-2 transition-colors"
                     >
@@ -491,7 +614,7 @@ export const AdminSettings: React.FC = () => {
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <h4 className="font-medium text-red-900 mb-2">Xóa toàn bộ dữ liệu</h4>
                     <p className="text-sm text-red-700 mb-4">Xóa hoàn toàn tất cả dữ liệu (không thể khôi phục)</p>
-                    <button 
+                    <button
                       onClick={() => setShowClearModal(true)}
                       className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 transition-colors"
                     >
@@ -659,7 +782,7 @@ export const AdminSettings: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Đặt lại dữ liệu</h3>
               </div>
               <p className="text-gray-600 mb-6">
-                Bạn có chắc chắn muốn đặt lại tất cả dữ liệu về trạng thái ban đầu? 
+                Bạn có chắc chắn muốn đặt lại tất cả dữ liệu về trạng thái ban đầu?
                 Tất cả dữ liệu hiện tại sẽ bị thay thế bằng dữ liệu mẫu.
               </p>
               <div className="flex justify-end space-x-3">
@@ -693,7 +816,7 @@ export const AdminSettings: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Xóa toàn bộ dữ liệu</h3>
               </div>
               <p className="text-gray-600 mb-6">
-                <strong>CẢNH BÁO:</strong> Hành động này sẽ xóa hoàn toàn tất cả dữ liệu và không thể khôi phục. 
+                <strong>CẢNH BÁO:</strong> Hành động này sẽ xóa hoàn toàn tất cả dữ liệu và không thể khôi phục.
                 Bạn có chắc chắn muốn tiếp tục?
               </p>
               <div className="flex justify-end space-x-3">
@@ -711,6 +834,169 @@ export const AdminSettings: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Thêm/Chỉnh sửa người dùng */}
+      {showUserFormModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+                </h3>
+                <button onClick={closeUserFormModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ và tên <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+                      formErrors.name ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Nguyễn Văn A"
+                  />
+                  {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+                      formErrors.email ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="email@example.com"
+                  />
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                </div>
+
+                {!editingUser && ( // Mật khẩu chỉ hiển thị khi thêm mới
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mật khẩu <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+                        formErrors.password ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="Tối thiểu 6 ký tự"
+                    />
+                    {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vai trò <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User['role'] })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+                      formErrors.role ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="staff">Nhân viên</option>
+                    <option value="admin">Quản trị viên</option>
+                    <option value="doctor">Bác sĩ</option>
+                    <option value="nurse">Y tá</option>
+                    <option value="pharmacist">Dược sĩ</option>
+                    <option value="lab_technician">KTV Xét nghiệm</option>
+                  </select>
+                  {formErrors.role && <p className="text-red-500 text-xs mt-1">{formErrors.role}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={userForm.phone}
+                    onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    placeholder="0912345678"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phòng ban
+                  </label>
+                  <input
+                    type="text"
+                    value={userForm.department}
+                    onChange={(e) => setUserForm({ ...userForm, department: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    placeholder="VD: Nội khoa, Dược"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    URL Ảnh đại diện
+                  </label>
+                  <input
+                    type="url"
+                    value={userForm.avatar}
+                    onChange={(e) => setUserForm({ ...userForm, avatar: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trạng thái hoạt động
+                  </label>
+                  <select
+                    value={userForm.is_active ? 'true' : 'false'}
+                    onChange={(e) => setUserForm({ ...userForm, is_active: e.target.value === 'true' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  >
+                    <option value="true">Hoạt động</option>
+                    <option value="false">Không hoạt động</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={closeUserFormModal}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>{editingUser ? 'Cập nhật' : 'Thêm mới'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
